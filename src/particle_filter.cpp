@@ -24,7 +24,9 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-    default_random_engine gen;
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+     default_random_engine gen;
     // Creates a normal (Gaussian) distribution for x, y, theta
     normal_distribution<double> dist_x(x, std[0]);
     normal_distribution<double> dist_y(y, std[1]);
@@ -49,7 +51,9 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
-    default_random_engine gen;
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+     default_random_engine gen;
     // Creates a normal (Gaussian) distribution for x, y, theta
     normal_distribution<double> dist_x(0, std_pos[0]);
     normal_distribution<double> dist_y(0, std_pos[1]);
@@ -89,7 +93,6 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
             }
         }
     }
-
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
@@ -107,6 +110,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     double gauss_norm= 1/(2*M_PI*std_landmark[0]* std_landmark[1]);
 
     for (int i = 0; i < num_particles; ++i) {
+        // for particles out of the sensor range, initialize the weight to 0.0
+        particles[i].weight = 0.0;
         std::vector<LandmarkObs> predictions;
         for (int j =0; j < map_landmarks.landmark_list.size(); ++j) {
             LandmarkObs predict;
@@ -116,6 +121,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                 predict.y = map_landmarks.landmark_list[j].y_f;
                 predict.id = map_landmarks.landmark_list[j].id_i;
                 predictions.push_back(predict);
+                // for particles in the sensor_range, initialize the weight to 1.0
+                particles[i].weight = 1.0;
             }
         }
         // observations transformed from vehicle coordinates to map coordinates
@@ -132,7 +139,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             tf_observations.push_back(tf_observation);
         }
         dataAssociation(predictions, tf_observations);
-        particles[i].weight = 1.0;
+        // particles[i].weight = 1.0;
 
         for (int j = 0; j < tf_observations.size(); ++j) {
             for (int k = 0; k < predictions.size(); ++k) {
@@ -166,7 +173,8 @@ void ParticleFilter::resample() {
     for (int i = 0; i < num_particles; i++) {
         sample_particles.push_back(particles[disc_dist(gen)]);
     }
-    particles = sample_particles;
+    // avoid the deep copy of vector data by using move semantics
+    particles = std::move(sample_particles);
 }
 
 Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<int>& associations, 
